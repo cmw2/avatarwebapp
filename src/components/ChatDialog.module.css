@@ -1,0 +1,19 @@
+.affixIcon {
+  cursor: pointer;
+  margin: var(--mantine-spacing-md);
+}
+
+.minimizeIcon {
+  cursor: pointer;
+}
+
+.wrapper {
+  outline: 0px solid var(--mantine-color-blue-filled);
+  border-color: transparent;
+}
+
+.input {
+  font-size: 4px;
+  font-color: "red";
+  color: "red";
+}

@@ -1,5 +1,5 @@
 // Libraries
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from "motion/react"
 
 // Components
@@ -23,9 +23,43 @@ export default function ChatDialog() {
   const [isMinimized, setIsMinimized] = useState(true);
   const { recognisedText } = useAvatar(useShallow(useAvatarSelector));
 
+  // Keyboard shortcut to access chat when iframe has focus
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt + C to toggle chat dialog
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsMinimized(prev => !prev);
+      }
+    };
+
+    // Add listener to document to catch events even when iframe has focus
+    document.addEventListener('keydown', handleKeyDown, true);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
+
+  // Focus management when dialog opens
+  useEffect(() => {
+    if (!isMinimized) {
+      // Small delay to allow the transition to complete
+      const timer = setTimeout(() => {
+        const textInput = document.getElementById('chat-text-input') as HTMLInputElement;
+        if (textInput) {
+          textInput.focus();
+        }
+      }, 450); // Slightly longer than the 400ms transition
+
+      return () => clearTimeout(timer);
+    }
+  }, [isMinimized]);
+
   return (
-    <Affix position={{ bottom: 108, right: 20 }} maw="400px">
-      <Container p={0}>
+    <Affix position={{ bottom: 108, right: 20 }} maw="400px" style={{ zIndex: 9999 }}>
+      <Container p={0} className={classes.chatDialog}>
         <Transition
           mounted={!isMinimized}
           transition="pop-bottom-right"
@@ -34,9 +68,29 @@ export default function ChatDialog() {
           keepMounted={true}
         >
           {(styles) => 
-            <Card shadow="md" pt="xs" pb="lg" pl="lg" pr="lg" radius="md" withBorder style={styles} >
+            <Card 
+              shadow="md" 
+              pt="xs" 
+              pb="lg" 
+              pl="lg" 
+              pr="lg" 
+              radius="md" 
+              withBorder 
+              style={{...styles, zIndex: 9999}}
+              role="dialog"
+              aria-label="Delaware State Parks AI Assistant"
+              aria-modal="false"
+            >
               <Flex justify="center" direction="column">
-                <AvatarIcon size="sm" variant="transparent" color="dark.4" className={classes.minimizeIcon} onClick={() => setIsMinimized(true)}>
+                <AvatarIcon 
+                  size="sm" 
+                  variant="transparent" 
+                  color="dark.4" 
+                  className={classes.minimizeIcon} 
+                  onClick={() => setIsMinimized(true)}
+                  component="button"
+                  aria-label="Minimize chat dialog"
+                >
                   <IconChevronCompactDown size={20} />
                 </AvatarIcon>
                 {!isMinimized && <Avatar />}
@@ -62,13 +116,70 @@ export default function ChatDialog() {
           }
         </Transition>
         {isMinimized &&
-          <Flex justify="flex-end" direction="row">
-            <motion.div whileHover={{ scale: 1.2 }}>
-            <AvatarIcon size="lg" color="blue" className={classes.affixIcon} onClick={() => setIsMinimized(false)}>
-              <IconBrandHipchat size={40} />
-            </AvatarIcon></motion.div>
+          <Flex justify="flex-end" direction="row" style={{ zIndex: 9999, position: 'relative' }}>
+            <motion.div whileHover={{ scale: 1.2 }} style={{ zIndex: 9999 }}>
+            <button
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                zIndex: 9999,
+                position: 'relative'
+              }}
+              onClick={() => {
+                setIsMinimized(false);
+              }}
+              aria-label="Open Delaware State Parks AI Assistant chat"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsMinimized(false);
+                }
+              }}
+            >
+              <AvatarIcon 
+                size="lg" 
+                color="blue" 
+                className={classes.affixIcon}
+              >
+                <IconBrandHipchat size={40} />
+              </AvatarIcon>
+            </button></motion.div>
           </Flex>
         }
+        {/* Live region for screen reader announcements */}
+        <div 
+          aria-live="polite" 
+          aria-atomic="true" 
+          style={{ position: 'absolute', left: '-10000px' }}
+        >
+          {!isMinimized ? 'Chat dialog opened. Press Alt+C to close.' : 'Chat dialog minimized. Press Alt+C to open chat or click the chat icon.'}
+        </div>
+        
+        {/* Keyboard shortcut indicator */}
+        {isMinimized && (
+          <div 
+            style={{ 
+              position: 'fixed', 
+              bottom: '10px', 
+              right: '10px', 
+              background: 'rgba(0,0,0,0.7)', 
+              color: 'white', 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              fontSize: '11px',
+              zIndex: 10000,
+              pointerEvents: 'none'
+            }}
+          >
+            Press Alt+C for chat
+          </div>
+        )}
       </Container>
     </Affix>
   );

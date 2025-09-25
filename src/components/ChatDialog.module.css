@@ -1,10 +1,19 @@
 .affixIcon {
   cursor: pointer;
   margin: var(--mantine-spacing-md);
+  z-index: 9999 !important;
+  position: relative;
 }
 
 .minimizeIcon {
   cursor: pointer;
+  z-index: 9999 !important;
+  position: relative;
+}
+
+.chatDialog {
+  z-index: 9999 !important;
+  position: relative;
 }
 
 .wrapper {
@@ -14,6 +23,5 @@
 
 .input {
   font-size: 4px;
-  font-color: "red";
-  color: "red";
+  color: red;
 }

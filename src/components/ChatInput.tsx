@@ -189,6 +189,7 @@ export function ChatInput () {
           <AudioVisualizer />
           :
           <TextInput 
+            id="chat-text-input"
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();

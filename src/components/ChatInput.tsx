@@ -19,14 +19,40 @@ const cognitiveServicesKey = import.meta.env.VITE_COGNITIVE_SERVICES_KEY;
 
 // Azure OpenAI Details
 const azureOpenAIEndpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
+const azureOpenAIEmbeddingDeploymentName = import.meta.env.VITE_AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME;
 const azureOpenAIApiKey = import.meta.env.VITE_AZURE_OPENAI_API_KEY;
 const azureOpenAIDeploymentName = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT_NAME;
-const azureOpenAISystemPrompt = 'You are an AI assistant that helps people find information. \n\n- **DO NOT** include any citations, references, or doc links. \n- Only provide a brief response in 1 to 2 sentences unless asked otherwise.'
-
 // Azure AI Search Details
 const azureAISearchEndpoint = import.meta.env.VITE_AI_SEARCH_ENDPOINT;
 const azureAISearchApiKey = import.meta.env.VITE_AI_SEARCH_API_KEY;
 const azureAISearchIndexName = import.meta.env.VITE_AI_SEARCH_INDEX;
+const azureAISearchSemanticConfiguration = import.meta.env.VITE_AI_SEARCH_SEMANTIC_CONFIGURATION;
+const azureAISearchQueryType = import.meta.env.VITE_AI_SEARCH_QUERY_TYPE;
+const azureAISearchTopNDocuments = parseInt(import.meta.env.VITE_AI_SEARCH_TOP_N_DOCUMENTS || '20');
+const azureAISearchEmbeddingDimensions = parseInt(import.meta.env.VITE_AI_SEARCH_EMBEDDING_DIMENSIONS || '3072');
+
+// Fields mapping with fallback default
+const defaultFieldsMapping = {
+  content_fields_separator: '\n',
+  content_fields: ['chunk'],
+  filepath_field: null,
+  title_field: 'title',
+  url_field: null,
+  vector_fields: ['text_vector']
+};
+
+const azureAISearchFieldsMapping = (() => {
+  try {
+    return import.meta.env.VITE_AI_SEARCH_FIELDS_MAPPING 
+      ? JSON.parse(import.meta.env.VITE_AI_SEARCH_FIELDS_MAPPING)
+      : defaultFieldsMapping;
+  } catch {
+    return defaultFieldsMapping;
+  }
+})();
+
+// System prompt with fallback default
+const azureOpenAISystemPrompt = import.meta.env.VITE_AZURE_OPENAI_SYSTEM_PROMPT || 'You are an AI assistant that helps people find information. \n\n- **DO NOT** include any citations, references, or doc links. \n- Only provide a brief response in 1 to 2 sentences unless asked otherwise.';
 
 const useAvatarSelector = (state: any) => ({
   isListening: state.isListening,
@@ -69,10 +95,10 @@ export function ChatInput () {
     const speechConfig = SpeechConfig.fromSubscription(cognitiveServicesKey, cognitiveServicesRegion)
     speechConfig.setProperty(PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous")
 
-    var autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.fromLanguages(['en-US'])
+    const autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.fromLanguages(['en-US','es-ES', 'es-MX'])
     speechRecognizer = SpeechRecognizer.FromConfig(speechConfig, autoDetectSourceLanguageConfig, AudioConfig.fromDefaultMicrophoneInput())
 
-    speechRecognizer.recognized = (s: any, e: any) => {
+    speechRecognizer.recognized = (_s: any, e: any) => {
       if (e.result.reason === ResultReason.RecognizedSpeech) {
         handleUserQuery(e.result.text);
         stopListening();
@@ -82,7 +108,7 @@ export function ChatInput () {
       }
     }
 
-    speechRecognizer.canceled = (s: any, e: any) => {
+    speechRecognizer.canceled = (_s: any, e: any) => {
       console.log(`CANCELED: Reason=${e.reason}`)
 
       if (e.reason === CancellationReason.Error) {
@@ -93,7 +119,7 @@ export function ChatInput () {
       stopListening();
     }
 
-    speechRecognizer.sessionStopped = (s: any, e: any) => {
+    speechRecognizer.sessionStopped = () => {
       stopListening();
     }
   }
@@ -101,28 +127,29 @@ export function ChatInput () {
   async function handleUserQuery (userQuery: string) {
     setRecognisedText('One moment please...');
 
-    var dataSources = [{
+    const dataSources = [{
       type: 'azure_search',
       parameters: {
         endpoint: azureAISearchEndpoint,
-        key: azureAISearchApiKey,
-        index_name: azureAISearchIndexName,
-        semanticConfiguration: '',
-        query_type: 'simple',
-        fields_mapping: {
-          content_fields_separator: '\n',
-          content_fields: ['content'],
-          filepath_field: null,
-          title_field: 'title',
-          url_field: null
+        authentication: {
+          type: 'api_key',
+          key: azureAISearchApiKey,
         },
-        top_n_documents: 20,
+        index_name: azureAISearchIndexName,
+        semantic_configuration: azureAISearchSemanticConfiguration,
+        query_type: azureAISearchQueryType,
+        fields_mapping: azureAISearchFieldsMapping,
+        top_n_documents: azureAISearchTopNDocuments,
         in_scope: true,
-        role_information: azureOpenAISystemPrompt
+        embedding_dependency: {
+          type: 'deployment_name',
+          deployment_name: azureOpenAIEmbeddingDeploymentName,
+          dimensions: azureAISearchEmbeddingDimensions,
+        }
       }
     }]
 
-    var messages = [
+    const messages = [
       {
         role: 'system',
         content: azureOpenAISystemPrompt
@@ -133,8 +160,8 @@ export function ChatInput () {
       }
     ];
 
-    let url = azureOpenAIEndpoint + "/openai/deployments/" + azureOpenAIDeploymentName + "/chat/completions?api-version=2024-02-15-preview"
-    let body = JSON.stringify({
+    const url = azureOpenAIEndpoint + "/openai/deployments/" + azureOpenAIDeploymentName + "/chat/completions?api-version=2025-01-01-preview"
+    const body = JSON.stringify({
         data_sources: dataSources,
         messages: messages,
         stream: false
@@ -169,20 +196,46 @@ export function ChatInput () {
                 event.currentTarget.value = '';
               }
             }}
-            placeholder={isAvatarSpeaking ? 'Speaking...' : ''} 
+            placeholder={isAvatarSpeaking ? 'Speaking...' : 'Ask a question about Delaware State Parks'} 
             pl={8} 
-            variant="unstyled" 
+            variant="unstyled"
+            aria-label="Ask a question about Delaware State Parks"
+            disabled={isAvatarSpeaking}
           />
         }
       </Grid.Col>
       <Grid.Col span="content">
-        <ActionIcon variant="outline" radius="xl" m={4} disabled={!isAvatarConnected} color={(isListening || isAvatarSpeaking) ? 'red' : 'blue'}>
+        <ActionIcon 
+          variant="outline" 
+          radius="xl" 
+          m={4} 
+          disabled={!isAvatarConnected} 
+          color={(isListening || isAvatarSpeaking) ? 'red' : 'blue'}
+          aria-label={
+            !isAvatarConnected 
+              ? 'Avatar is connecting, please wait'
+              : isListening 
+                ? 'Stop listening and cancel voice input'
+                : isAvatarSpeaking 
+                  ? 'Stop avatar from speaking'
+                  : 'Start voice input to ask a question'
+          }
+        >
           {(isListening || isAvatarSpeaking) ?
-            <IconSquareFilled style={{ width: '70%', height: '70%' }} color="red" stroke={1.5} onClick={() => { stopListening(); setStopAvatarSpeaking(true); }} />
+            <IconSquareFilled 
+              style={{ width: '70%', height: '70%' }} 
+              color="red" 
+              stroke={1.5} 
+              onClick={() => { stopListening(); setStopAvatarSpeaking(true); }} 
+            />
             : !isAvatarConnected ?
             <Loader color="blue" type="dots" size="xs" />
             :
-            <IconMicrophone style={{ width: '70%', height: '70%' }} stroke={1.5} onClick={() => startListening()} />
+            <IconMicrophone 
+              style={{ width: '70%', height: '70%' }} 
+              stroke={1.5} 
+              onClick={() => startListening()} 
+            />
           }
         </ActionIcon>
       </Grid.Col>

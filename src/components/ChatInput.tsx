@@ -144,7 +144,7 @@ export function ChatInput () {
         embedding_dependency: {
           type: 'deployment_name',
           deployment_name: azureOpenAIEmbeddingDeploymentName,
-          dimensions: azureAISearchEmbeddingDimensions,
+          ...(azureAISearchEmbeddingDimensions > 0 && { dimensions: azureAISearchEmbeddingDimensions }),
         }
       }
     }]

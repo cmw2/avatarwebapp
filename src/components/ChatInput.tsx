@@ -21,6 +21,7 @@ const cognitiveServicesKey = import.meta.env.VITE_COGNITIVE_SERVICES_KEY;
 const azureOpenAIEndpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
 const azureOpenAIApiKey = import.meta.env.VITE_AZURE_OPENAI_API_KEY;
 const azureOpenAIDeploymentName = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT_NAME;
+const azureOpenAIUserPrompt = import.meta.env.VITE_AZURE_OPENAI_USER_PROMPT;
 // Configuration now loaded from JSON files with environment variable fallbacks
 
 // Import configuration files
@@ -283,10 +284,10 @@ export function ChatInput () {
                 event.currentTarget.value = '';
               }
             }}
-            placeholder={isAvatarSpeaking ? 'Speaking...' : 'Ask a question about Delaware State Parks'} 
+            placeholder={isAvatarSpeaking ? 'Speaking...' : azureOpenAIUserPrompt} 
             pl={8} 
             variant="unstyled"
-            aria-label="Ask a question about Delaware State Parks"
+            aria-label={azureOpenAIUserPrompt}
             disabled={isAvatarSpeaking}
           />
         }

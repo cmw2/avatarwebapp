@@ -1,0 +1,56 @@
+[
+  {
+    "id": "parks",
+    "name": "Delaware State Parks",
+    "description": "Information about Delaware state parks including camping, trails, facilities, hours, activities, locations, and park amenities",
+    "keywords": [
+      "park",
+      "parks",
+      "camping",
+      "trails",
+      "hiking",
+      "facilities",
+      "recreation",
+      "outdoors",
+      "nature",
+      "activities",
+      "locations",
+      "hours",
+      "Cape Henlopen",
+      "Alapocas Run",
+      "Brandywine Creek",
+      "Delaware Seashore",
+      "Fort Delaware",
+      "Killens Pond",
+      "Lums Pond",
+      "White Clay Creek"
+    ]
+  },
+  {
+    "id": "housing",
+    "name": "Delaware Housing Authority",
+    "description": "Information about Delaware Housing Authority services including housing programs, applications, eligibility requirements, rental assistance, public housing, and housing vouchers",
+    "keywords": [
+      "housing",
+      "rental",
+      "apartment",
+      "assistance",
+      "voucher",
+      "eligibility",
+      "application",
+      "public housing",
+      "affordable housing",
+      "programs",
+      "rent",
+      "lease",
+      "tenant",
+      "landlord",
+      "subsidy",
+      "income",
+      "waiting list",
+      "section 8",
+      "HUD",
+      "Delaware Housing Authority"
+    ]
+  }
+]

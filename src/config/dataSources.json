@@ -1,0 +1,56 @@
+[
+  {
+    "type": "azure_search",
+    "parameters": {
+      "endpoint": "${VITE_AI_SEARCH_ENDPOINT}",
+      "authentication": {
+        "type": "api_key",
+        "key": "${VITE_AI_SEARCH_API_KEY}"
+      },
+      "index_name": "de-stateparks",
+      "semantic_configuration": "de-stateparks-semantic-configuration",
+      "query_type": "vector_semantic_hybrid",
+      "fields_mapping": {
+        "content_fields_separator": "\n",
+        "content_fields": ["chunk"],
+        "filepath_field": null,
+        "title_field": "title",
+        "url_field": null,
+        "vector_fields": ["text_vector"]
+      },
+      "top_n_documents": 20,
+      "in_scope": true,
+      "embedding_dependency": {
+        "type": "deployment_name",
+        "deployment_name": "${VITE_AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME}"
+      }
+    }
+  },
+  {
+    "type": "azure_search",
+    "parameters": {
+      "endpoint": "${VITE_AI_SEARCH_ENDPOINT}",
+      "authentication": {
+        "type": "api_key",
+        "key": "${VITE_AI_SEARCH_API_KEY}"
+      },
+      "index_name": "de-housing",
+      "semantic_configuration": "de-housing-semantic-configuration",
+      "query_type": "vector_semantic_hybrid",
+      "fields_mapping": {
+        "content_fields_separator": "\n",
+        "content_fields": ["chunk"],
+        "filepath_field": null,
+        "title_field": "title",
+        "url_field": null,
+        "vector_fields": ["text_vector"]
+      },
+      "top_n_documents": 20,
+      "in_scope": true,
+      "embedding_dependency": {
+        "type": "deployment_name",
+        "deployment_name": "${VITE_AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME}"
+      }
+    }
+  }
+]

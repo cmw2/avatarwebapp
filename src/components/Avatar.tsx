@@ -233,7 +233,7 @@ export const Avatar = () => {
         .then(result => {
           setIsAvatarSpeaking(false);
           if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-            setRecognisedText('');
+            // setRecognisedText(''); // Commented out to keep text visible
           }
         })
         .catch(error => {

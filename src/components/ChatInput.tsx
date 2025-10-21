@@ -216,10 +216,28 @@ export function ChatInput () {
       const selectedDataSource = [allDataSources[selectedDataSourceIndex]]; // Wrap in array for API
 
       // Step 2: Make the actual chat completion call with selected data source
+      // Create dynamic system prompt with current date/time information
+      const now = new Date();
+      const currentDateTime = now.toLocaleString('en-US', {
+        timeZone: 'America/New_York', // Eastern Time (Delaware timezone)
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      const timeZoneInfo = 'Eastern Time (EST/EDT)';
+      
+      const systemPromptWithDateTime = `${azureOpenAISystemPrompt}
+
+Current date and time: ${currentDateTime} (${timeZoneInfo})`;
+
       const messages = [
         {
           role: 'system',
-          content: azureOpenAISystemPrompt
+          content: systemPromptWithDateTime
         },
         {
           role: 'user',

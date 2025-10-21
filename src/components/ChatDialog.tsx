@@ -1,6 +1,7 @@
 // Libraries
 import { useState, useEffect } from 'react';
 import { motion } from "motion/react"
+import ReactMarkdown from 'react-markdown';
 
 // Components
 import { Affix, Container, Card, Flex, Transition, Paper, ScrollArea, Text, Avatar as AvatarIcon } from '@mantine/core';
@@ -105,7 +106,26 @@ export default function ChatDialog() {
                   {(styles) => 
                     <Paper p="xs" maw={300} style={styles}>
                       <ScrollArea.Autosize mah={110} maw={300} mx="auto">
-                        <Text fz="xs">{recognisedText}</Text>
+                        <Text fz="xs">
+                          <ReactMarkdown
+                            components={{
+                              // Customize rendering to work well with Mantine's Text component
+                              p: ({ children }) => <span>{children}</span>,
+                              strong: ({ children }) => <strong>{children}</strong>,
+                              em: ({ children }) => <em>{children}</em>,
+                              a: ({ href, children }) => (
+                                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mantine-color-blue-6)', textDecoration: 'underline' }}>
+                                  {children}
+                                </a>
+                              ),
+                              // Remove default paragraph margins for inline rendering
+                              ul: ({ children }) => <ul style={{ margin: '0.25rem 0', paddingLeft: '1rem' }}>{children}</ul>,
+                              ol: ({ children }) => <ol style={{ margin: '0.25rem 0', paddingLeft: '1rem' }}>{children}</ol>,
+                            }}
+                          >
+                            {recognisedText}
+                          </ReactMarkdown>
+                        </Text>
                       </ScrollArea.Autosize>
                     </Paper>
                   }

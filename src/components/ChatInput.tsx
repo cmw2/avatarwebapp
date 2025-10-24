@@ -1,6 +1,8 @@
 // Libraries
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { AudioConfig, SpeechConfig, SpeechRecognizer, ResultReason, CancellationReason, PropertyId, AutoDetectSourceLanguageConfig } from 'microsoft-cognitiveservices-speech-sdk';
+
+
 
 // Components
 import { ActionIcon, Paper, Grid, TextInput, Loader } from '@mantine/core';
@@ -81,24 +83,32 @@ const dataSourceMetadata = (() => {
 // System prompt with fallback default
 const azureOpenAISystemPrompt = import.meta.env.VITE_AZURE_OPENAI_SYSTEM_PROMPT || 'You are an AI assistant that helps people find information. \n\n- **DO NOT** include any citations, references, or doc links. \n- Only provide a brief response in 1 to 2 sentences unless asked otherwise.';
 
-// Routing LLM function to select appropriate data source
-async function selectDataSource(userQuery: string): Promise<number> {
-  const routingPrompt = `You are a routing assistant. Based on the user's query, select the most appropriate data source by returning ONLY the index number (0, 1, 2, etc.).
+// Routing LLM function to select appropriate data source (considers conversation history)
+async function selectDataSource(userQuery: string, chatHistory: Array<{role: 'user' | 'assistant', content: string}>): Promise<number> {
+  // Build context from recent chat history for routing decision
+  const recentMessages = chatHistory.length > 0 
+    ? chatHistory.slice(-4).map(msg => `${msg.role}: ${msg.content}`).join('\n')
+    : 'No previous conversation history';
 
-Available data sources:
+  const routingPrompt = `You are a routing assistant. Based on the user's current query and conversation context, select the most appropriate data source by returning ONLY the index number (0, 1, 2, etc.).
+
+## AVAILABLE DATA SOURCES:
 ${dataSourceMetadata.map((source, index) => 
-  `${index}: ${source.name} - ${source.description}${source.keywords.length > 0 ? ` Keywords: ${source.keywords.join(', ')}` : ''}`
+  `${index}: ${source.name} - ${source.description}${source.keywords.length > 0 ? ` (Keywords: ${source.keywords.join(', ')})` : ''}`
 ).join('\n')}
 
-User query: "${userQuery}"
+## CONVERSATION CONTEXT:
+${recentMessages}
 
-Respond with ONLY the index number of the most appropriate data source:`;
+## CURRENT USER QUERY:
+"${userQuery}"
+
+## INSTRUCTIONS:
+Consider the conversation context to maintain topic continuity. Respond with ONLY the index number of the most appropriate data source:`;
 
   try {
     // Use routing model (fallback to main model if not specified)
     const routingModel = import.meta.env.VITE_AZURE_OPENAI_ROUTING_DEPLOYMENT_NAME || import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT_NAME;
-    
-    console.log(`Using routing model: ${routingModel} for data source selection`);
     
     const response = await fetch(
       `${import.meta.env.VITE_AZURE_OPENAI_ENDPOINT}/openai/deployments/${routingModel}/chat/completions?api-version=2025-01-01-preview`,
@@ -151,6 +161,21 @@ let speechRecognizer: SpeechRecognizer;
 
 export function ChatInput () {
   const { isListening, setIsListening, setRecognisedText, isAvatarSpeaking, setStopAvatarSpeaking, isAvatarConnected } = useAvatar(useShallow(useAvatarSelector));
+  
+  // Chat history for conversation context
+  const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const chatHistoryRef = useRef<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  
+  // Helper function to clear chat history (could be called by a button later)
+  const clearChatHistory = () => {
+    setChatHistory([]);
+    chatHistoryRef.current = [];
+  };
+
+  // Keep ref synchronized with state
+  useEffect(() => {
+    chatHistoryRef.current = chatHistory;
+  }, [chatHistory]);
 
   useEffect(() => {
     const enableMedia = async () => {
@@ -165,8 +190,30 @@ export function ChatInput () {
   }, []);
 
   const startListening = () => {
-    speechRecognizer.startContinuousRecognitionAsync()
-    setIsListening(true)
+    if (!speechRecognizer) {
+      console.error('Speech recognizer not initialized');
+      console.log('webRTC status: Speech recognizer not ready - try refreshing the page');
+      return;
+    }
+
+    console.log('Starting speech recognition...');
+    try {
+      speechRecognizer.startContinuousRecognitionAsync(
+        () => {
+          console.log('Speech recognition started successfully');
+          setIsListening(true);
+        },
+        (error: any) => {
+          console.error('Failed to start speech recognition:', error);
+          console.log('webRTC status: Microphone access denied or not available');
+          setIsListening(false);
+        }
+      );
+    } catch (error) {
+      console.error('Error starting speech recognition:', error);
+      console.log('webRTC status: Speech recognition initialization failed');
+      setIsListening(false);
+    }
   };
 
   const stopListening = () => {
@@ -175,47 +222,68 @@ export function ChatInput () {
   };
 
   const createRecognizer = () => {
-    const speechConfig = SpeechConfig.fromSubscription(cognitiveServicesKey, cognitiveServicesRegion)
-    speechConfig.setProperty(PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous")
+    console.log('Creating speech recognizer...');
+    
+    try {
+      const speechConfig = SpeechConfig.fromSubscription(cognitiveServicesKey, cognitiveServicesRegion)
+      speechConfig.setProperty(PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous")
 
-    const autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.fromLanguages(['en-US','es-ES', 'es-MX'])
-    speechRecognizer = SpeechRecognizer.FromConfig(speechConfig, autoDetectSourceLanguageConfig, AudioConfig.fromDefaultMicrophoneInput())
+      const autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.fromLanguages(['en-US','es-ES', 'es-MX'])
+      speechRecognizer = SpeechRecognizer.FromConfig(speechConfig, autoDetectSourceLanguageConfig, AudioConfig.fromDefaultMicrophoneInput())
 
-    speechRecognizer.recognized = (_s: any, e: any) => {
-      if (e.result.reason === ResultReason.RecognizedSpeech) {
-        handleUserQuery(e.result.text);
+      // Session lifecycle events
+      speechRecognizer.sessionStarted = (_s: any, e: any) => {
+        console.log('Speech recognition session started:', e.sessionId);
+        console.log('webRTC status: Speech recognizer ready for input');
+      };
+
+      speechRecognizer.sessionStopped = (_s: any, e: any) => {
+        console.log('Speech recognition session stopped:', e.sessionId);
         stopListening();
-      } else if (e.result.reason === ResultReason.NoMatch) {
-        console.log("NOMATCH: Speech could not be recognized.")
+      };
+
+      speechRecognizer.recognized = (_s: any, e: any) => {
+        if (e.result.reason === ResultReason.RecognizedSpeech) {
+          // console.log('Speech recognized:', e.result.text);
+          handleUserQuery(e.result.text);
+          stopListening();
+        } else if (e.result.reason === ResultReason.NoMatch) {
+          console.log("NOMATCH: Speech could not be recognized.")
+          stopListening();
+        }
+      }
+
+      speechRecognizer.canceled = (_s: any, e: any) => {
+        console.log(`CANCELED: Reason=${e.reason}`)
+
+        if (e.reason === CancellationReason.Error) {
+          console.log(`CANCELED: ErrorCode=${e.errorCode}`)
+          console.log(`CANCELED: ErrorDetails=${e.errorDetails}`)
+          console.log("CANCELED: Did you set the speech resource key and region values?")
+          console.log("webRTC status: Speech recognition error - microphone may not be available");
+        }
         stopListening();
       }
-    }
 
-    speechRecognizer.canceled = (_s: any, e: any) => {
-      console.log(`CANCELED: Reason=${e.reason}`)
-
-      if (e.reason === CancellationReason.Error) {
-        console.log(`"CANCELED: ErrorCode=${e.errorCode}`)
-        console.log(`"CANCELED: ErrorDetails=${e.errorDetails}`)
-        console.log("CANCELED: Did you set the speech resource key and region values?")
-      }
-      stopListening();
-    }
-
-    speechRecognizer.sessionStopped = () => {
-      stopListening();
+      console.log('Speech recognizer created successfully');
+    } catch (error) {
+      console.error('Error creating speech recognizer:', error);
+      console.log('webRTC status: Failed to initialize speech recognition');
     }
   }
 
   async function handleUserQuery (userQuery: string) {
+    // Use ref to get the most current history (no race conditions)
+    const currentChatHistory = chatHistoryRef.current;
+    
     setRecognisedText('One moment please...');
 
     try {
-      // Step 1: Route the query to select appropriate data source
-      const selectedDataSourceIndex = await selectDataSource(userQuery);
+      // Step 1: Route the query to select appropriate data source (considering conversation history)
+      const selectedDataSourceIndex = await selectDataSource(userQuery, currentChatHistory);
       const selectedDataSource = [allDataSources[selectedDataSourceIndex]]; // Wrap in array for API
-
-      // Step 2: Make the actual chat completion call with selected data source
+      
+      // Step 2: Build conversation messages including history
       // Create dynamic system prompt with current date/time information
       const now = new Date();
       const currentDateTime = now.toLocaleString('en-US', {
@@ -239,6 +307,7 @@ Current date and time: ${currentDateTime} (${timeZoneInfo})`;
           role: 'system',
           content: systemPromptWithDateTime
         },
+        ...currentChatHistory, // Include conversation history for context
         {
           role: 'user',
           content: userQuery
@@ -278,7 +347,34 @@ Current date and time: ${currentDateTime} (${timeZoneInfo})`;
       }
 
       const assistantMessage = azureOpenAIEResponse.choices[0].message;
-      setRecognisedText(assistantMessage.content);
+      
+      // Clean up citation markers from the response text
+      const cleanedContent = assistantMessage.content
+        .replace(/\[doc\d+\]/g, '') // Remove [doc1], [doc2], etc.
+        .replace(/\[[^\]]*\d+[^\]]*\]/g, '') // Remove any bracketed content with numbers
+        .replace(/ {2,}/g, ' ') // Clean up extra spaces (but preserve newlines)
+        .replace(/\t+/g, ' ') // Replace tabs with single spaces
+        .trim();
+      
+      setRecognisedText(cleanedContent);
+      
+      // Step 3: Update chat history with the new exchange      
+      // Use functional update to ensure we get the most recent state
+      setChatHistory(currentHistory => {
+        const newHistory: Array<{role: 'user' | 'assistant', content: string}> = [
+          ...currentHistory,  // Use the current state, not the potentially stale chatHistory
+          { role: 'user' as const, content: userQuery },
+          { role: 'assistant' as const, content: cleanedContent }
+        ];
+        
+        // Keep only the last 20 messages to prevent token limit issues
+        const trimmedHistory = newHistory.length > 20 ? newHistory.slice(-20) : newHistory;
+        
+        // Update ref synchronously so next query gets the latest data immediately
+        chatHistoryRef.current = trimmedHistory;
+        
+        return trimmedHistory;
+      });
       
     } catch (error) {
       console.error('Error in handleUserQuery:', error);

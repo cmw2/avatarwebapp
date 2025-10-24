@@ -1,6 +1,8 @@
 // Libraries
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+import { remark } from 'remark';
+import stripMarkdown from 'strip-markdown';
 
 // Components
 import { Card, Center, Image } from '@mantine/core';
@@ -11,6 +13,24 @@ import { useShallow } from 'zustand/react/shallow';
 
 // Styles
 import "./Avatar.css";
+
+// Function to convert markdown to plain text for speech
+function markdownToSpeechText(markdown: string): string {
+  try {
+    // First, convert links to include URLs for speech
+    const withUrls = markdown.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 at $2');
+    
+    // Use remark + strip-markdown for conversion
+    const processor = remark().use(stripMarkdown);
+    const result = processor.processSync(withUrls);
+        
+    return String(result).trim();
+  } catch (error) {
+    console.error('Error processing markdown:', error);
+    // If remark fails, fall back to simple approach
+    return markdown.replace(/\s{2,}/g, ' ').trim();
+  }
+}
 
 // Avatar Details
 const cognitiveServicesRegion = import.meta.env.VITE_COGNITIVE_SERVICES_REGION;
@@ -85,7 +105,7 @@ const createAvatarSynthesizer = () => {
     if (e.offset === 0) {
       offsetMessage = ""
     }
-    console.log("[" + (new Date()).toISOString() + "] Event received: " + e.description + offsetMessage)
+    // console.log("[" + (new Date()).toISOString() + "] Event received: " + e.description + offsetMessage)
   }
 
   return avatarSynthesizer;
@@ -229,7 +249,9 @@ export const Avatar = () => {
   useEffect(() => {
     if (recognisedText && avatarSynthesizer) {
       setIsAvatarSpeaking(true);
-      avatarSynthesizer.speakTextAsync(recognisedText)
+      // Convert markdown to plain text for speech while keeping markdown for display
+      const speechText = markdownToSpeechText(recognisedText);
+      avatarSynthesizer.speakTextAsync(speechText)
         .then(result => {
           setIsAvatarSpeaking(false);
           if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
@@ -248,6 +270,7 @@ export const Avatar = () => {
       <Card.Section m="0 auto"> 
         {!isAvatarConnected && <Center><Image src="/staticAvatar.png" w={320} /></Center>}
         <video
+          controls
           ref={myAvatarVideoEleRef}
           playsInline
           style={{

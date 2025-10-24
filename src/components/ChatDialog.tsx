@@ -4,7 +4,7 @@ import { motion } from "motion/react"
 import ReactMarkdown from 'react-markdown';
 
 // Components
-import { Affix, Container, Card, Flex, Transition, Paper, ScrollArea, Text, Avatar as AvatarIcon } from '@mantine/core';
+import { Affix, Container, Card, Flex, Transition, Paper, ScrollArea, Avatar as AvatarIcon } from '@mantine/core';
 import { Avatar } from './Avatar';
 import { ChatInput } from './ChatInput';
 
@@ -23,6 +23,8 @@ const useAvatarSelector = (state: any) => ({
 export default function ChatDialog() {
   const [isMinimized, setIsMinimized] = useState(true);
   const { recognisedText } = useAvatar(useShallow(useAvatarSelector));
+
+
 
   // Keyboard shortcut to access chat when iframe has focus
   useEffect(() => {
@@ -106,11 +108,17 @@ export default function ChatDialog() {
                   {(styles) => 
                     <Paper p="xs" maw={300} style={styles}>
                       <ScrollArea.Autosize mah={110} maw={300} mx="auto">
-                        <Text fz="xs">
+                        <div style={{ fontSize: 'var(--mantine-font-size-xs)', color: 'var(--mantine-color-text)' }}>
                           <ReactMarkdown
                             components={{
-                              // Customize rendering to work well with Mantine's Text component
-                              p: ({ children }) => <span>{children}</span>,
+                              // Customize rendering to work well with the container
+                              p: ({ children }) => <p style={{ margin: '0.25rem 0', fontSize: 'inherit' }}>{children}</p>,
+                              h1: ({ children }) => <h1 style={{ margin: '0.25rem 0', fontSize: '1.1em', fontWeight: 'bold' }}>{children}</h1>,
+                              h2: ({ children }) => <h2 style={{ margin: '0.25rem 0', fontSize: '1.05em', fontWeight: 'bold' }}>{children}</h2>,
+                              h3: ({ children }) => <h3 style={{ margin: '0.25rem 0', fontSize: '1em', fontWeight: 'bold' }}>{children}</h3>,
+                              h4: ({ children }) => <h4 style={{ margin: '0.25rem 0', fontSize: '1em', fontWeight: 'bold' }}>{children}</h4>,
+                              h5: ({ children }) => <h5 style={{ margin: '0.25rem 0', fontSize: '1em', fontWeight: 'bold' }}>{children}</h5>,
+                              h6: ({ children }) => <h6 style={{ margin: '0.25rem 0', fontSize: '1em', fontWeight: 'bold' }}>{children}</h6>,
                               strong: ({ children }) => <strong>{children}</strong>,
                               em: ({ children }) => <em>{children}</em>,
                               a: ({ href, children }) => (
@@ -118,14 +126,14 @@ export default function ChatDialog() {
                                   {children}
                                 </a>
                               ),
-                              // Remove default paragraph margins for inline rendering
                               ul: ({ children }) => <ul style={{ margin: '0.25rem 0', paddingLeft: '1rem' }}>{children}</ul>,
                               ol: ({ children }) => <ol style={{ margin: '0.25rem 0', paddingLeft: '1rem' }}>{children}</ol>,
+                              li: ({ children }) => <li style={{ margin: '0.1rem 0' }}>{children}</li>,
                             }}
                           >
                             {recognisedText}
                           </ReactMarkdown>
-                        </Text>
+                        </div>
                       </ScrollArea.Autosize>
                     </Paper>
                   }

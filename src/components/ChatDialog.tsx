@@ -61,7 +61,7 @@ export default function ChatDialog() {
   }, [isMinimized]);
 
   return (
-    <Affix position={{ bottom: 108, right: 20 }} maw="400px" style={{ zIndex: 9999 }}>
+    <Affix position={{ bottom: 50, right: 20 }} maw="400px" style={{ zIndex: 9999 }}>
       <Container p={0} className={classes.chatDialog}>
         <Transition
           mounted={!isMinimized}
@@ -106,8 +106,8 @@ export default function ChatDialog() {
                   keepMounted={true}
                 >
                   {(styles) => 
-                    <Paper p="xs" maw={300} style={styles}>
-                      <ScrollArea.Autosize mah={110} maw={300} mx="auto">
+                    <Paper p="xs" style={styles}>
+                      <ScrollArea.Autosize mah={110} mx="auto">
                         <div style={{ fontSize: 'var(--mantine-font-size-xs)', color: 'var(--mantine-color-text)' }}>
                           <ReactMarkdown
                             components={{
@@ -139,6 +139,21 @@ export default function ChatDialog() {
                   }
                 </Transition>
                 <ChatInput />
+                
+                {/* Responsible AI Statement */}
+                <Paper 
+                  p="xs" 
+                  mt="sm" 
+                  style={{ 
+                    fontSize: '10px', 
+                    color: 'var(--mantine-color-dimmed)', 
+                    backgroundColor: 'var(--mantine-color-gray-0)',
+                    borderLeft: '2px solid var(--mantine-color-blue-5)',
+                    textAlign: 'center'
+                  }}
+                >
+                  <strong>AI Assistant:</strong> Responses may contain errors. Verify important information.
+                </Paper>
               </Flex>
             </Card>
           }
